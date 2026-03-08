@@ -13,6 +13,7 @@ Comprehensive testing strategies for Python applications using pytest, TDD metho
 - Designing test suites for Python projects
 - Reviewing Python test coverage
 - Setting up testing infrastructure
+- When pytest is mentioned
 
 ## Core Testing Philosophy
 
