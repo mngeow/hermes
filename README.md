@@ -1,1 +1,41 @@
 # opencode-skills
+
+This repository contains reusable OpenCode skills, reusable OpenCode agents, and the design and specification docs for `hermes`.
+
+`hermes` is a CLI for installing selected shared artifacts into a project-local `.opencode/` directory.
+
+## Why Hermes
+
+`hermes` is named after the Greek messenger god associated with travel, movement, boundaries, and exchange.
+
+That fits this CLI because it moves curated artifacts across a boundary:
+
+- from the shared `repo/` skill library into `.opencode/skills/`
+- from the shared `agents/` library into `.opencode/agents/`
+
+It is effectively the delivery and transport layer between a central reusable library and a project's local OpenCode workspace.
+
+## What Hermes Does
+
+- discovers installable skills from `repo/`
+- discovers installable agents from `agents/`
+- lets a project choose which skills and agents to install locally
+- copies them into the local `.opencode/` directory
+- records installed state in `.opencode/catalog.toml`
+- supports follow-up management operations like `list`, `sync`, `remove`, and `doctor`
+
+## Repository Layout
+
+- `repo/`: shared skill library
+- `agents/`: shared OpenCode agent library
+- `docs/`: implementation and design drafts for `hermes`
+- `openspec/specs/`: initial OpenSpec capability specs for `hermes`
+
+## Current Direction
+
+The current design for `hermes` is a Rust CLI that:
+
+- installs skills as directories into `.opencode/skills/`
+- installs agents as markdown files into `.opencode/agents/`
+- keeps project-local copies self-contained
+- tracks those installs through a unified `.opencode/catalog.toml` manifest
