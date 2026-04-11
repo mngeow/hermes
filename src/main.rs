@@ -11,6 +11,7 @@ mod models;
 mod remove;
 mod skills;
 mod sync;
+mod tui;
 
 fn main() {
     if let Err(err) = app::run() {

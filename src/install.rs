@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::{self, IsTerminal};
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
-use dialoguer::{MultiSelect, theme::ColorfulTheme};
+use anyhow::{bail, Result};
+use dialoguer::{theme::ColorfulTheme, MultiSelect};
 
 use crate::agents::inspect_agents;
 use crate::cli::{InstallArgs, InstallTarget};
@@ -14,6 +15,7 @@ use crate::models::{
     ProjectPaths, SourceOverrides,
 };
 use crate::skills::inspect_skills;
+use crate::tui::run_interactive_selection;
 
 pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs) -> Result<()> {
     let mut manifest = load_or_default(paths)?;
@@ -32,53 +34,49 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
     let mut skipped = Vec::new();
     let mut notes = Vec::new();
 
-    if selection.skills.enabled() {
-        match roots.skills.as_deref() {
-            Some(root) => {
-                manifest.skills_source_root = Some(root.to_path_buf());
-                let inspection = inspect_skills(root)?;
-                for issue in &inspection.issues {
-                    eprintln!("Warning: {issue}");
+    if selection.skills.enabled() || selection.agents.enabled() {
+        match resolve_interactive_selection(&selection, &roots)? {
+            Some(result) => {
+                if !result.selected_skills.is_empty() {
+                    if let Some(root) = roots.skills.as_deref() {
+                        manifest.skills_source_root = Some(root.to_path_buf());
+                        let inspection = inspect_skills(root)?;
+                        for issue in &inspection.issues {
+                            eprintln!("Warning: {issue}");
+                        }
+                        let selected =
+                            select_named_skills(&result.selected_skills, inspection.items)?;
+                        for skill in selected {
+                            match install_skill(paths, &mut manifest, &skill, args.force)? {
+                                InstallOutcome::Installed(name) => installed_skills.push(name),
+                                InstallOutcome::Skipped(name, reason) => skipped
+                                    .push(format!("Skipped {name}\nKind: skill\nReason: {reason}")),
+                            }
+                        }
+                    }
                 }
-                let selected = resolve_skill_selection(&selection.skills, inspection.items)?;
-                for skill in selected {
-                    match install_skill(paths, &mut manifest, &skill, args.force)? {
-                        InstallOutcome::Installed(name) => installed_skills.push(name),
-                        InstallOutcome::Skipped(name, reason) => {
-                            skipped.push(format!("Skipped {name}\nKind: skill\nReason: {reason}"))
+                if !result.selected_agents.is_empty() {
+                    if let Some(root) = roots.agents.as_deref() {
+                        manifest.agents_source_root = Some(root.to_path_buf());
+                        let inspection = inspect_agents(root)?;
+                        for issue in &inspection.issues {
+                            eprintln!("Warning: {issue}");
+                        }
+                        let selected =
+                            select_named_agents(&result.selected_agents, inspection.items)?;
+                        for agent in selected {
+                            match install_agent(paths, &mut manifest, &agent, args.force)? {
+                                InstallOutcome::Installed(name) => installed_agents.push(name),
+                                InstallOutcome::Skipped(name, reason) => skipped
+                                    .push(format!("Skipped {name}\nKind: agent\nReason: {reason}")),
+                            }
                         }
                     }
                 }
             }
-            None if selection.skills.requires_source() => {
-                bail!("no skills source root configured; pass --skills-source or run hermes init")
+            None => {
+                notes.push("No artifacts selected for installation".to_string());
             }
-            None => notes.push("Skipping skills: no skills source root configured".to_string()),
-        }
-    }
-
-    if selection.agents.enabled() {
-        match roots.agents.as_deref() {
-            Some(root) => {
-                manifest.agents_source_root = Some(root.to_path_buf());
-                let inspection = inspect_agents(root)?;
-                for issue in &inspection.issues {
-                    eprintln!("Warning: {issue}");
-                }
-                let selected = resolve_agent_selection(&selection.agents, inspection.items)?;
-                for agent in selected {
-                    match install_agent(paths, &mut manifest, &agent, args.force)? {
-                        InstallOutcome::Installed(name) => installed_agents.push(name),
-                        InstallOutcome::Skipped(name, reason) => {
-                            skipped.push(format!("Skipped {name}\nKind: agent\nReason: {reason}"))
-                        }
-                    }
-                }
-            }
-            None if selection.agents.requires_source() => {
-                bail!("no agents source root configured; pass --agents-source or run hermes init")
-            }
-            None => notes.push("Skipping agents: no agents source root configured".to_string()),
         }
     }
 
@@ -99,6 +97,12 @@ enum InstallOutcome {
 }
 
 #[derive(Debug, Clone)]
+struct SelectedArtifacts {
+    selected_skills: Vec<String>,
+    selected_agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum RequestedArtifacts {
     Skip,
     Prompt,
@@ -165,25 +169,120 @@ impl InstallSelection {
     }
 }
 
+fn resolve_interactive_selection(
+    selection: &InstallSelection,
+    roots: &crate::models::SourceRoots,
+) -> Result<Option<SelectedArtifacts>> {
+    let use_tui = selection.skills == RequestedArtifacts::Prompt
+        && selection.agents == RequestedArtifacts::Prompt;
+
+    if !use_tui {
+        let skills = resolve_skill_selection(&selection.skills, roots)?;
+        let agents = resolve_agent_selection(&selection.agents, roots)?;
+        return Ok(Some(SelectedArtifacts {
+            selected_skills: skills.into_iter().map(|s| s.name).collect(),
+            selected_agents: agents.into_iter().map(|a| a.name).collect(),
+        }));
+    }
+
+    if !io::stdin().is_terminal() {
+        bail!(
+            "Interactive selection requires a terminal. \
+             Provide explicit artifact names or run in a TTY."
+        );
+    }
+
+    let skills: Vec<DiscoveredSkill> = match roots.skills.as_deref() {
+        Some(root) => {
+            let inspection = inspect_skills(root)?;
+            for issue in &inspection.issues {
+                eprintln!("Warning: {issue}");
+            }
+            inspection.items
+        }
+        None => Vec::new(),
+    };
+
+    let agents: Vec<DiscoveredAgent> = match roots.agents.as_deref() {
+        Some(root) => {
+            let inspection = inspect_agents(root)?;
+            for issue in &inspection.issues {
+                eprintln!("Warning: {issue}");
+            }
+            inspection.items
+        }
+        None => Vec::new(),
+    };
+
+    if skills.is_empty() && agents.is_empty() {
+        return Ok(Some(SelectedArtifacts {
+            selected_skills: Vec::new(),
+            selected_agents: Vec::new(),
+        }));
+    }
+
+    match run_interactive_selection(skills, agents)? {
+        Some(result) => Ok(Some(SelectedArtifacts {
+            selected_skills: result.selected_skills,
+            selected_agents: result.selected_agents,
+        })),
+        None => Ok(None),
+    }
+}
+
 fn resolve_skill_selection(
     request: &RequestedArtifacts,
-    discovered: Vec<DiscoveredSkill>,
+    roots: &crate::models::SourceRoots,
 ) -> Result<Vec<DiscoveredSkill>> {
     match request {
         RequestedArtifacts::Skip => Ok(Vec::new()),
-        RequestedArtifacts::Prompt => prompt_skills(discovered),
-        RequestedArtifacts::Named(names) => select_named_skills(names, discovered),
+        RequestedArtifacts::Prompt => {
+            let root = roots
+                .skills
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("no skills source root configured"))?;
+            let inspection = inspect_skills(root)?;
+            for issue in &inspection.issues {
+                eprintln!("Warning: {issue}");
+            }
+            prompt_skills(inspection.items)
+        }
+        RequestedArtifacts::Named(names) => {
+            let root = roots
+                .skills
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("no skills source root configured"))?;
+            let inspection = inspect_skills(root)?;
+            select_named_skills(names, inspection.items)
+        }
     }
 }
 
 fn resolve_agent_selection(
     request: &RequestedArtifacts,
-    discovered: Vec<DiscoveredAgent>,
+    roots: &crate::models::SourceRoots,
 ) -> Result<Vec<DiscoveredAgent>> {
     match request {
         RequestedArtifacts::Skip => Ok(Vec::new()),
-        RequestedArtifacts::Prompt => prompt_agents(discovered),
-        RequestedArtifacts::Named(names) => select_named_agents(names, discovered),
+        RequestedArtifacts::Prompt => {
+            let root = roots
+                .agents
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("no agents source root configured"))?;
+            let inspection = inspect_agents(root)?;
+            for issue in &inspection.issues {
+                eprintln!("Warning: {issue}");
+            }
+            prompt_agents(inspection.items)
+        }
+        RequestedArtifacts::Named(names) => {
+            let root = roots
+                .agents
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("no agents source root configured"))?;
+            let inspection = inspect_agents(root)?;
+            select_named_agents(names, inspection.items)
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 use std::fs;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
 use crate::agents::{inspect_agents, validate_installed_agent};
 use crate::manifest::{load_manifest, resolve_source_roots};

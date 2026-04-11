@@ -142,7 +142,8 @@ hermes doctor
 
 - Discovers skills from the configured skills source root, if present.
 - Discovers agents from the configured agents source root, if present.
-- If no names are provided, opens an interactive multi-select prompt for skills and then a separate prompt for agents.
+- If no names are provided and running in an interactive terminal, opens a full-screen TUI for selecting skills and agents (see [Interactive Install TUI](#interactive-install-tui)).
+- If no names are provided and running in a non-TTY environment, fails with a clear error.
 - Copies chosen skills into `.opencode/skills/`.
 - Copies chosen agents into `.opencode/agents/`.
 - Updates `.opencode/catalog.toml`.
@@ -576,33 +577,35 @@ sequenceDiagram
 
 ## UX Details
 
-### Interactive install
+### Interactive install (TUI)
 
-Skill prompt:
+When running `hermes install` without explicit artifact names in an interactive terminal, the CLI opens a full-screen terminal UI (TUI) for selecting skills and agents. The TUI uses `ratatui` for rendering and presents skills and agents in side-by-side panes.
 
-```text
-Select skills to install:
-[x] code-review               Perform thorough code reviews using project-specific guidelines and checklists
-[ ] litestar-expert           Expert-level guidance for Litestar applications
-[x] python-testing            Python testing strategies using pytest, TDD methodology, fixtures, mocking, parametrization, and coverage requirements.
-```
+**Keyboard controls:**
 
-Agent prompt:
+| Key | Action |
+|-----|--------|
+| `Tab` | Switch focus between skills and agents panes |
+| `↑` / `↓` or `j` / `k` | Navigate up/down in the current pane |
+| `Space` or `Enter` | Toggle selection of the highlighted item |
+| `c` | Confirm selections and proceed with install |
+| `q` or `Esc` | Cancel and exit without installing |
 
-```text
-Select agents to install:
-[x] review                    Reviews code for quality and best practices (subagent)
-[ ] docs-writer               Writes and maintains project documentation (subagent)
-[x] security-auditor          Performs security audits and identifies vulnerabilities (subagent)
-```
+Selected items are marked with `[x]`; unselected items show `[ ]`.
 
 ### Non-interactive install
 
+For scripting or CI environments, use explicit arguments to bypass the TUI:
+
 ```bash
 hermes install --skills code-review python-testing --agents review security-auditor
+hermes install skills code-review python-testing
+hermes install agents review security-auditor
 ```
 
-Expected output:
+In non-TTY environments without explicit names, the CLI fails with a clear error message directing you to use the explicit argument forms.
+
+### Expected output
 
 ```text
 Installed 2 skills into .opencode/skills
@@ -623,6 +626,53 @@ Skipped review
 Kind: agent
 Reason: local installed copy differs from the last recorded manifest hash
 Hint: rerun with --force if you want to overwrite local changes
+```
+
+## Interactive Install TUI
+
+When `hermes install` is run without explicit artifact names in an interactive terminal, the CLI launches a full-screen TUI for selecting skills and agents to install.
+
+### Layout
+
+The TUI displays skills and agents in side-by-side panes:
+
+- **Left pane**: Available skills from the configured skills source root
+- **Right pane**: Available agents from the configured agents source root
+
+Each pane shows the artifact name, description, and selection state. The active pane is highlighted.
+
+### Controls
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Switch focus between the skills and agents panes |
+| `↑` / `↓` | Navigate up/down in the current pane |
+| `j` / `k` | Alternative navigation keys (vim-style) |
+| `Space` | Toggle selection of the highlighted item |
+| `Enter` | Toggle selection of the highlighted item |
+| `c` | Confirm selections and proceed with installation |
+| `q` | Cancel and exit without installing |
+| `Esc` | Cancel and exit without installing |
+
+### Selection States
+
+- `[ ]` — Item is not selected
+- `[x]` — Item is selected for installation
+
+### Behavior
+
+- At least one pane must have a source root configured for the TUI to appear
+- If only skills or only agents are configured, the TUI shows a single pane
+- Confirming with no selections exits without installing anything
+- The TUI gracefully handles terminals of various sizes
+
+### Non-TTY Environments
+
+In non-interactive environments (CI, pipes, redirects), the CLI cannot display the TUI. If no explicit artifact names are provided, the command fails with an error:
+
+```text
+Error: Cannot run interactive install in non-TTY environment.
+       Use explicit arguments: hermes install --skills <names> --agents <names>
 ```
 
 ## Frontmatter Parsing Notes

@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
 use crate::cli::SyncArgs;
 use crate::fs_ops::{atomic_install_agent, atomic_install_skill};
