@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes logo concept</title>
+  <desc id="desc">A circular Hermes mark inspired by a public-domain 1880 illustration, using a winged petasus, a stylized face, and a caduceus.</desc>
+  <defs>
+    <style>
+      .ink { fill: none; stroke: #111111; stroke-linecap: round; stroke-linejoin: round; }
+      .solid { fill: #111111; }
+    </style>
+  </defs>
+
+  <circle class="ink" cx="256" cy="256" r="220" stroke-width="16"/>
+
+  <path class="solid" d="M182 150 C194 112 224 88 256 88 C288 88 318 112 330 150 C314 138 298 130 278 126 C264 123 248 123 234 126 C214 130 198 138 182 150 Z"/>
+  <path class="solid" d="M154 166 C178 138 334 138 358 166 C334 182 178 182 154 166 Z"/>
+
+  <path class="solid" d="M152 152 C130 136 114 110 118 92 C124 70 150 64 184 92 C168 96 156 108 150 124 C162 120 178 122 194 132 C186 144 172 152 152 152 Z"/>
+  <path class="solid" d="M360 152 C382 136 398 110 394 92 C388 70 362 64 328 92 C344 96 356 108 362 124 C350 120 334 122 318 132 C326 144 340 152 360 152 Z"/>
+
+  <path class="ink" stroke-width="10" d="M224 198 C216 212 214 228 218 244 C224 266 238 284 256 294 C274 284 288 266 294 244 C298 228 296 212 288 198"/>
+  <path class="ink" stroke-width="10" d="M220 194 C230 184 244 178 256 178 C268 178 282 184 292 194"/>
+  <path class="ink" stroke-width="8" d="M236 214 C242 210 250 208 256 208 C262 208 270 210 276 214"/>
+  <path class="ink" stroke-width="8" d="M246 232 L258 232"/>
+  <path class="ink" stroke-width="8" d="M240 248 C248 252 264 252 272 248"/>
+
+  <path class="ink" stroke-width="12" d="M196 330 C212 306 232 292 256 292 C280 292 300 306 316 330"/>
+
+  <path class="ink" stroke-width="14" d="M256 212 L256 392"/>
+  <path class="ink" stroke-width="14" d="M256 226 C214 242 208 280 232 302 C249 317 256 330 256 346"/>
+  <path class="ink" stroke-width="14" d="M256 226 C298 242 304 280 280 302 C263 317 256 330 256 346"/>
+  <path class="ink" stroke-width="10" d="M232 246 C206 230 184 228 164 236"/>
+  <path class="ink" stroke-width="10" d="M280 246 C306 230 328 228 348 236"/>
+
+  <path class="ink" stroke-width="10" d="M168 220 C194 190 230 174 270 174"/>
+  <path class="ink" stroke-width="10" d="M344 220 C318 190 282 174 242 174"/>
+  <path class="ink" stroke-width="10" d="M192 364 C212 340 232 326 256 322 C280 326 300 340 320 364"/>
+  <path class="ink" stroke-width="10" d="M214 390 C230 378 244 372 256 372 C268 372 282 378 298 390"/>
+  <circle class="solid" cx="256" cy="204" r="4"/>
+  <circle class="solid" cx="256" cy="214" r="4"/>
+</svg>

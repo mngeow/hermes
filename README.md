@@ -1,6 +1,10 @@
-# opencode-skills
+# hermes
 
-This repository contains reusable OpenCode skills, reusable OpenCode agents, and the design and specification docs for `hermes`.
+<img src="assets/hermes-logo.svg" alt="Hermes logo concept" width="180" />
+
+A first-pass logo concept inspired by a public-domain 1880 Hermes illustration. See `assets/README.md` for source details.
+
+This repository contains the `hermes` CLI, reusable OpenCode skills, reusable OpenCode agents, and the design and specification docs for the project.
 
 `hermes` is a CLI for installing selected shared artifacts into a project-local `.opencode/` directory.
 
@@ -41,7 +45,7 @@ cargo run -- init --skills-source ./repo --agents-source ./agents
 Example install flow inside a target project directory:
 
 ```bash
-hermes init --skills-source /path/to/opencode-skills/repo --agents-source /path/to/opencode-skills/agents
+hermes init --skills-source /path/to/hermes/repo --agents-source /path/to/hermes/agents
 hermes install --skills code-review --agents review
 hermes list --installed all
 hermes doctor
