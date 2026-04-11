@@ -1,20 +1,29 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Project: Hermes, a Rust CLI for installing curated OpenCode skills and agents into a project-local `.opencode/` directory.
+  Tech stack: Rust CLI application.
+  Primary sources of truth: `docs/rust-skill-installer-cli.md`, `docs/sample-agents-library.md`, and `openspec/specs/`.
+  Current repository layout:
+  - `repo/` contains reusable skill directories with top-level `SKILL.md` files and optional nested resources.
+  - `agents/` contains reusable single-file OpenCode markdown agents.
+  - Hermes installs skills into `.opencode/skills/` and agents into `.opencode/agents/`.
+  - Hermes records managed state in `.opencode/catalog.toml`.
+  Implementation guidance:
+  - Prefer the smallest correct Rust implementation for v1.
+  - Start with copy-based installs, not symlinks.
+  - Preserve agent markdown content verbatim during installation.
+  - Preserve full skill directories recursively, excluding only obvious generated junk.
+  - Keep the CLI usable both non-interactively and interactively when dependencies allow it.
+  Verification rule: every code-writing task must finish by building the CLI with `cargo build`, and the build must pass before the work is considered complete.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - Ground the proposal in the existing Hermes docs and OpenSpec capability specs.
+    - State the first-version scope clearly and keep non-goals explicit.
+  design:
+    - Keep the design aligned with the documented Hermes manifest and filesystem model.
+    - Prefer minimal architecture and explain only implementation-relevant decisions.
+  tasks:
+    - Break implementation into small, executable steps.
+    - Always include a final verification task that runs `cargo build` and requires it to pass.

@@ -24,16 +24,41 @@ It is effectively the delivery and transport layer between a central reusable li
 - records installed state in `.opencode/catalog.toml`
 - supports follow-up management operations like `list`, `sync`, `remove`, and `doctor`
 
+## Build And Run
+
+Build the CLI locally with:
+
+```bash
+cargo build
+```
+
+Run it with:
+
+```bash
+cargo run -- init --skills-source ./repo --agents-source ./agents
+```
+
+Example install flow inside a target project directory:
+
+```bash
+hermes init --skills-source /path/to/opencode-skills/repo --agents-source /path/to/opencode-skills/agents
+hermes install --skills code-review --agents review
+hermes list --installed all
+hermes doctor
+```
+
 ## Repository Layout
 
 - `repo/`: shared skill library
 - `agents/`: shared OpenCode agent library
 - `docs/`: implementation and design drafts for `hermes`
 - `openspec/specs/`: initial OpenSpec capability specs for `hermes`
+- `src/`: Rust implementation of `hermes`
+- `Cargo.toml`: Rust package definition for `hermes`
 
 ## Current Direction
 
-The current design for `hermes` is a Rust CLI that:
+The current implementation of `hermes` is a Rust CLI that:
 
 - installs skills as directories into `.opencode/skills/`
 - installs agents as markdown files into `.opencode/agents/`
