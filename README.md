@@ -36,16 +36,37 @@ Build the CLI locally with:
 cargo build
 ```
 
-Run it with:
+Initialize a target project with:
 
 ```bash
 cargo run -- init --skills-source ./repo --agents-source ./agents
 ```
 
+## Interactive Mode
+
+`hermes` can also boot into an interactive terminal UI for install selection.
+
+After `init` has recorded the source roots for a project, run `hermes install` with no explicit artifact names to open the TUI:
+
+```bash
+hermes init --skills-source /path/to/hermes/repo --agents-source /path/to/hermes/agents
+hermes install
+```
+
+If you are running directly from this repository instead of an installed binary, use:
+
+```bash
+cargo run -- init --skills-source ./repo --agents-source ./agents
+cargo run -- install --skills-source ./repo --agents-source ./agents
+```
+
+The TUI lets you browse both skills and agents in one screen. Use `Tab` to switch focus, `Up` and `Down` or `j` and `k` to move, `Space` or `Enter` to toggle items, `c` to confirm, and `q` or `Esc` to cancel.
+
 Example install flow inside a target project directory:
 
 ```bash
 hermes init --skills-source /path/to/hermes/repo --agents-source /path/to/hermes/agents
+hermes install
 hermes install --skills code-review --agents review
 hermes list --installed all
 hermes doctor
