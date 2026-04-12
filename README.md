@@ -23,9 +23,10 @@ It is effectively the delivery and transport layer between a central reusable li
 
 - discovers installable skills from `repo/`
 - discovers installable agents from `agents/`
+- persists default source roots in `~/.config/hermes_cli/config.toml`
 - lets a project choose which skills and agents to install locally
 - copies them into the local `.opencode/` directory
-- records installed state in `.opencode/catalog.toml`
+- records project-local installed state in `.opencode/catalog.toml`
 - supports follow-up management operations like `list`, `sync`, `remove`, and `doctor`
 
 ## Build And Run
@@ -36,28 +37,51 @@ Build the CLI locally with:
 cargo build
 ```
 
-Initialize a target project with:
+Configure default source roots once with:
 
 ```bash
-cargo run -- init --skills-source ./repo --agents-source ./agents
+cargo run -- configure --skills-source ./repo --agents-source ./agents
 ```
+
+This writes `~/.config/hermes_cli/config.toml`, which Hermes uses as the default source-root config for later commands.
+
+From a target project directory, install artifacts with:
+
+```bash
+hermes install --skills code-review --agents review
+```
+
+`hermes install` can bootstrap `.opencode/` in a fresh project as long as source roots are resolvable. Use `hermes init` only if you want to create the local workspace before installing anything.
+
+## Configuration Model
+
+Hermes resolves source roots in this order:
+
+- CLI flags
+- `~/.config/hermes_cli/config.toml`
+- `OPENCODE_SKILLS_SOURCE` and `OPENCODE_AGENTS_SOURCE`
+
+The user-level config file stores reusable `skills_source_root` and `agents_source_root` defaults. The project-local `.opencode/catalog.toml` tracks installed artifacts and local workspace state.
 
 ## Interactive Mode
 
 `hermes` can also boot into an interactive terminal UI for install selection.
 
-After `init` has recorded the source roots for a project, run `hermes install` with no explicit artifact names to open the TUI:
+After you have configured default source roots, run `hermes install` with no explicit artifact names to open the TUI:
 
 ```bash
-hermes init --skills-source /path/to/hermes/repo --agents-source /path/to/hermes/agents
+# configure once
+hermes configure --skills-source /path/to/hermes/repo --agents-source /path/to/hermes/agents
+
+# then inside a target project directory
 hermes install
 ```
 
 If you are running directly from this repository instead of an installed binary, use:
 
 ```bash
-cargo run -- init --skills-source ./repo --agents-source ./agents
-cargo run -- install --skills-source ./repo --agents-source ./agents
+cargo run -- configure --skills-source ./repo --agents-source ./agents
+cargo run -- install
 ```
 
 The TUI lets you browse both skills and agents in one screen. Use `Tab` to switch focus, `Up` and `Down` or `j` and `k` to move, `Space` or `Enter` to toggle items, `c` to confirm, and `q` or `Esc` to cancel.
@@ -65,7 +89,10 @@ The TUI lets you browse both skills and agents in one screen. Use `Tab` to switc
 Example install flow inside a target project directory:
 
 ```bash
-hermes init --skills-source /path/to/hermes/repo --agents-source /path/to/hermes/agents
+# configure once
+hermes configure --skills-source /path/to/hermes/repo --agents-source /path/to/hermes/agents
+
+# inside any target project directory
 hermes install
 hermes install --skills code-review --agents review
 hermes list --installed all
@@ -85,7 +112,8 @@ hermes doctor
 
 The current implementation of `hermes` is a Rust CLI that:
 
+- persists default source roots in `~/.config/hermes_cli/config.toml`
 - installs skills as directories into `.opencode/skills/`
 - installs agents as markdown files into `.opencode/agents/`
 - keeps project-local copies self-contained
-- tracks those installs through a unified `.opencode/catalog.toml` manifest
+- tracks project-local installs through a unified `.opencode/catalog.toml` manifest
