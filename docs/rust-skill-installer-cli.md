@@ -115,11 +115,19 @@ flowchart TD
 Working binary name: `hermes`
 
 ```bash
-hermes init --skills-source ~/Projects/opencode-skills/repo --agents-source ~/Projects/opencode-skills/agents
+# Configure global source roots (one-time setup)
+hermes configure --skills-source ~/Projects/opencode-skills/repo --agents-source ~/Projects/opencode-skills/agents
+
+# Initialize a project workspace (creates .opencode/ directory)
+hermes init
+
+# Install artifacts (no prior init required if source roots are configured)
 hermes install
 hermes install --skills code-review python-testing --agents review security-auditor
 hermes install skills code-review python-testing
 hermes install agents review security-auditor
+
+# List and manage artifacts
 hermes list --available skills
 hermes list --available agents
 hermes list --installed all
@@ -131,12 +139,19 @@ hermes doctor
 
 ## Command Behavior
 
+### `configure`
+
+- Creates `~/.config/hermes_cli/` and writes `config.toml` with the provided source roots.
+- Allows either source root to be omitted, but requires at least one of `--skills-source` or `--agents-source`.
+- Updates existing config without clearing unspecified roots.
+- This is the recommended way to set up persistent source root configuration.
+
 ### `init`
 
 - Creates `.opencode/`, `.opencode/skills/`, and `.opencode/agents/` if missing.
-- Writes `.opencode/catalog.toml` with configured source roots.
-- Allows either source root to be omitted, but requires at least one of `skills_source_root` or `agents_source_root`.
+- Creates `.opencode/catalog.toml` for tracking installed artifacts.
 - Does not install anything yet.
+- Source roots are resolved from CLI flags, user config (`~/.config/hermes_cli/config.toml`), or environment variables.
 
 ### `install`
 
@@ -148,6 +163,7 @@ hermes doctor
 - Copies chosen agents into `.opencode/agents/`.
 - Updates `.opencode/catalog.toml`.
 - Refuses to overwrite a locally modified installed skill or agent unless `--force` is passed.
+- **Note**: Does not require a prior `hermes init` if source roots are configured via `hermes configure` or environment variables.
 
 ### `list`
 
@@ -182,12 +198,13 @@ Use the current working directory as the default project root.
 - Project `.opencode` path: `<cwd>/.opencode`
 - Installed skills path: `<cwd>/.opencode/skills`
 - Installed agents path: `<cwd>/.opencode/agents`
+- User config path: `~/.config/hermes_cli/config.toml`
 
 Resolve each source root independently in this order:
 
-1. CLI flag
-2. `.opencode/catalog.toml`
-3. environment variable
+1. CLI flag (highest precedence)
+2. User config file (`~/.config/hermes_cli/config.toml`)
+3. Environment variable (lowest precedence)
 
 Environment variables:
 
@@ -302,15 +319,15 @@ Optional future mode: `link`
 
 ## Manifest Design
 
-Use `.opencode/catalog.toml` as the single local manifest.
+Use `.opencode/catalog.toml` as the single local manifest for tracking installed artifacts.
+
+**Note**: Source roots are no longer stored in the project catalog. They are managed via the user config file at `~/.config/hermes_cli/config.toml` or environment variables.
 
 Example:
 
 ```toml
 version = 1
 install_mode = "copy"
-skills_source_root = "/Users/mngeow/Projects/opencode-skills/repo"
-agents_source_root = "/Users/mngeow/Projects/opencode-skills/agents"
 
 [[skills]]
 name = "code-review"
@@ -714,16 +731,17 @@ Implementation details:
 
 ## Suggested Implementation Order
 
-1. Scaffold the CLI with `clap` and add `init`, `install`, `list`, `remove`, `sync`, and `doctor` subcommands.
-2. Implement skill discovery for `repo/*/SKILL.md`.
-3. Implement agent discovery for `agents/*.md`.
-4. Implement frontmatter parsing and validation for both kinds.
-5. Implement manifest read and write for `.opencode/catalog.toml`.
-6. Implement recursive skill copy and direct agent-file copy.
-7. Implement interactive selection for skills and agents.
-8. Implement hashing and local-change detection.
-9. Implement `sync` and `doctor`.
-10. Add end-to-end tests using temp directories.
+1. Scaffold the CLI with `clap` and add `init`, `configure`, `install`, `list`, `remove`, `sync`, and `doctor` subcommands.
+2. Implement user config management for `~/.config/hermes_cli/config.toml`.
+3. Implement skill discovery for `repo/*/SKILL.md`.
+4. Implement agent discovery for `agents/*.md`.
+5. Implement frontmatter parsing and validation for both kinds.
+6. Implement manifest read and write for `.opencode/catalog.toml`.
+7. Implement recursive skill copy and direct agent-file copy.
+8. Implement interactive selection for skills and agents.
+9. Implement hashing and local-change detection.
+10. Implement `sync` and `doctor`.
+11. Add end-to-end tests using temp directories.
 
 ## Testing Plan
 

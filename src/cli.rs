@@ -19,6 +19,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     Init(InitArgs),
+    Configure(ConfigureArgs),
     Install(InstallArgs),
     List(ListArgs),
     Sync(SyncArgs),
@@ -28,6 +29,15 @@ pub enum Commands {
 
 #[derive(Debug, Args)]
 pub struct InitArgs {}
+
+#[derive(Debug, Args)]
+pub struct ConfigureArgs {
+    #[arg(long, value_name = "PATH")]
+    pub skills_source: Option<PathBuf>,
+
+    #[arg(long, value_name = "PATH")]
+    pub agents_source: Option<PathBuf>,
+}
 
 #[derive(Debug, Args)]
 pub struct InstallArgs {

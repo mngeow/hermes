@@ -3,6 +3,7 @@ use clap::Parser;
 
 use crate::agents::inspect_agents;
 use crate::cli::{Cli, Commands, InitArgs, ListArgs, ListTarget};
+use crate::configure;
 use crate::doctor;
 use crate::fs_ops::ensure_workspace;
 use crate::install;
@@ -23,6 +24,7 @@ pub fn run() -> Result<()> {
 
     match cli.command {
         Commands::Init(args) => run_init(&paths, &overrides, args),
+        Commands::Configure(args) => configure::run(args),
         Commands::Install(args) => install::run(&paths, &overrides, args),
         Commands::List(args) => run_list(&paths, &overrides, args),
         Commands::Sync(args) => sync::run(&paths, &overrides, args),
@@ -32,22 +34,26 @@ pub fn run() -> Result<()> {
 }
 
 fn run_init(paths: &ProjectPaths, overrides: &SourceOverrides, _args: InitArgs) -> Result<()> {
-    let mut manifest = load_or_default(paths)?;
-    let roots = resolve_source_roots(overrides, Some(&manifest))?;
+    // Check if we have at least one resolvable source root
+    let roots = resolve_source_roots(overrides, None)?;
     if roots.is_empty() {
         bail!(
-            "hermes init requires at least one source root; pass --skills-source or --agents-source"
+            "hermes init requires at least one source root; \
+             pass --skills-source or --agents-source, \
+             or configure defaults with hermes configure"
         )
     }
 
+    // Just create the workspace - source roots are now managed via user config
     ensure_workspace(
         &paths.opencode_dir,
         &paths.skills_dir,
         &paths.agents_dir,
         &paths.tmp_dir,
     )?;
-    manifest.skills_source_root = roots.skills.clone();
-    manifest.agents_source_root = roots.agents.clone();
+
+    // Create an empty manifest (without source roots)
+    let manifest = load_or_default(paths)?;
     save_manifest(paths, &manifest)?;
 
     println!(

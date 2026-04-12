@@ -1,6 +1,7 @@
 mod agents;
 mod app;
 mod cli;
+mod configure;
 mod doctor;
 mod frontmatter;
 mod fs_ops;
@@ -12,6 +13,7 @@ mod remove;
 mod skills;
 mod sync;
 mod tui;
+mod user_config;
 
 fn main() {
     if let Err(err) = app::run() {

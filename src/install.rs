@@ -20,6 +20,8 @@ use crate::tui::run_interactive_selection;
 pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs) -> Result<()> {
     let mut manifest = load_or_default(paths)?;
     let roots = resolve_source_roots(overrides, Some(&manifest))?;
+
+    // Bootstrap workspace if needed (no prior init required)
     ensure_workspace(
         &paths.opencode_dir,
         &paths.skills_dir,
@@ -39,7 +41,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
             Some(result) => {
                 if !result.selected_skills.is_empty() {
                     if let Some(root) = roots.skills.as_deref() {
-                        manifest.skills_source_root = Some(root.to_path_buf());
+                        // No longer store source root in manifest
                         let inspection = inspect_skills(root)?;
                         for issue in &inspection.issues {
                             eprintln!("Warning: {issue}");
@@ -57,7 +59,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
                 }
                 if !result.selected_agents.is_empty() {
                     if let Some(root) = roots.agents.as_deref() {
-                        manifest.agents_source_root = Some(root.to_path_buf());
+                        // No longer store source root in manifest
                         let inspection = inspect_agents(root)?;
                         for issue in &inspection.issues {
                             eprintln!("Warning: {issue}");
@@ -112,10 +114,6 @@ enum RequestedArtifacts {
 impl RequestedArtifacts {
     fn enabled(&self) -> bool {
         !matches!(self, Self::Skip)
-    }
-
-    fn requires_source(&self) -> bool {
-        self.enabled()
     }
 }
 

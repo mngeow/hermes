@@ -21,7 +21,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: SyncArgs) ->
     if sync_skills {
         match roots.skills.as_deref() {
             Some(root) => {
-                manifest.skills_source_root = Some(root.to_path_buf());
+                // No longer store source root in manifest
                 for skill in &mut manifest.skills {
                     let source_path = root.join(&skill.source_rel_path);
                     let installed_path = paths.installed_path(&skill.installed_rel_path);
@@ -64,7 +64,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: SyncArgs) ->
                 }
             }
             None if args.skills => {
-                bail!("no skills source root configured; pass --skills-source or run hermes init")
+                bail!("no skills source root configured; pass --skills-source or run hermes configure")
             }
             None => println!("Skipping skills: no skills source root configured"),
         }
@@ -73,7 +73,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: SyncArgs) ->
     if sync_agents {
         match roots.agents.as_deref() {
             Some(root) => {
-                manifest.agents_source_root = Some(root.to_path_buf());
+                // No longer store source root in manifest
                 for agent in &mut manifest.agents {
                     let source_path = root.join(&agent.source_rel_path);
                     let installed_path = paths.installed_path(&agent.installed_rel_path);
@@ -116,7 +116,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: SyncArgs) ->
                 }
             }
             None if args.agents => {
-                bail!("no agents source root configured; pass --agents-source or run hermes init")
+                bail!("no agents source root configured; pass --agents-source or run hermes configure")
             }
             None => println!("Skipping agents: no agents source root configured"),
         }

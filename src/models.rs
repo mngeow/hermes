@@ -166,3 +166,10 @@ impl<T> Default for Inspection<T> {
         }
     }
 }
+
+/// User-level Hermes configuration stored at ~/.config/hermes_cli/config.toml
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UserConfig {
+    pub skills_source_root: Option<PathBuf>,
+    pub agents_source_root: Option<PathBuf>,
+}
