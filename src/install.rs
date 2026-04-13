@@ -7,12 +7,15 @@ use dialoguer::{theme::ColorfulTheme, MultiSelect};
 
 use crate::agents::inspect_agents;
 use crate::cli::{InstallArgs, InstallTarget};
-use crate::fs_ops::{atomic_install_agent, atomic_install_skill, ensure_workspace};
-use crate::hashing::{hash_agent_file, hash_skill_dir};
+use crate::commands::inspect_commands;
+use crate::fs_ops::{
+    atomic_install_agent, atomic_install_command, atomic_install_skill, ensure_workspace,
+};
+use crate::hashing::{hash_agent_file, hash_command_file, hash_skill_dir};
 use crate::manifest::{load_or_default, resolve_source_roots, save_manifest};
 use crate::models::{
-    CatalogManifest, DiscoveredAgent, DiscoveredSkill, InstalledAgent, InstalledSkill,
-    ProjectPaths, SourceOverrides,
+    CatalogManifest, DiscoveredAgent, DiscoveredCommand, DiscoveredSkill, InstalledAgent,
+    InstalledCommand, InstalledSkill, ProjectPaths, SourceOverrides,
 };
 use crate::skills::inspect_skills;
 use crate::tui::run_interactive_selection;
@@ -26,6 +29,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
         &paths.opencode_dir,
         &paths.skills_dir,
         &paths.agents_dir,
+        &paths.commands_dir,
         &paths.tmp_dir,
     )?;
 
@@ -33,15 +37,15 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
 
     let mut installed_skills = Vec::new();
     let mut installed_agents = Vec::new();
+    let mut installed_commands = Vec::new();
     let mut skipped = Vec::new();
     let mut notes = Vec::new();
 
-    if selection.skills.enabled() || selection.agents.enabled() {
+    if selection.skills.enabled() || selection.agents.enabled() || selection.commands.enabled() {
         match resolve_interactive_selection(&selection, &roots)? {
             Some(result) => {
                 if !result.selected_skills.is_empty() {
                     if let Some(root) = roots.skills.as_deref() {
-                        // No longer store source root in manifest
                         let inspection = inspect_skills(root)?;
                         for issue in &inspection.issues {
                             eprintln!("Warning: {issue}");
@@ -59,7 +63,6 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
                 }
                 if !result.selected_agents.is_empty() {
                     if let Some(root) = roots.agents.as_deref() {
-                        // No longer store source root in manifest
                         let inspection = inspect_agents(root)?;
                         for issue in &inspection.issues {
                             eprintln!("Warning: {issue}");
@@ -71,6 +74,24 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
                                 InstallOutcome::Installed(name) => installed_agents.push(name),
                                 InstallOutcome::Skipped(name, reason) => skipped
                                     .push(format!("Skipped {name}\nKind: agent\nReason: {reason}")),
+                            }
+                        }
+                    }
+                }
+                if !result.selected_commands.is_empty() {
+                    if let Some(root) = roots.commands.as_deref() {
+                        let inspection = inspect_commands(root)?;
+                        for issue in &inspection.issues {
+                            eprintln!("Warning: {issue}");
+                        }
+                        let selected =
+                            select_named_commands(&result.selected_commands, inspection.items)?;
+                        for command in selected {
+                            match install_command(paths, &mut manifest, &command, args.force)? {
+                                InstallOutcome::Installed(name) => installed_commands.push(name),
+                                InstallOutcome::Skipped(name, reason) => skipped.push(format!(
+                                    "Skipped {name}\nKind: command\nReason: {reason}"
+                                )),
                             }
                         }
                     }
@@ -87,6 +108,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
         paths,
         &installed_skills,
         &installed_agents,
+        &installed_commands,
         &skipped,
         &notes,
     );
@@ -102,6 +124,7 @@ enum InstallOutcome {
 struct SelectedArtifacts {
     selected_skills: Vec<String>,
     selected_agents: Vec<String>,
+    selected_commands: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -120,12 +143,15 @@ impl RequestedArtifacts {
 struct InstallSelection {
     skills: RequestedArtifacts,
     agents: RequestedArtifacts,
+    commands: RequestedArtifacts,
 }
 
 impl InstallSelection {
     fn from_args(args: &InstallArgs) -> Result<Self> {
-        if args.target.is_some() && (!args.skills.is_empty() || !args.agents.is_empty()) {
-            bail!("cannot combine --skills/--agents with install kind subcommands")
+        if args.target.is_some()
+            && (!args.skills.is_empty() || !args.agents.is_empty() || !args.commands.is_empty())
+        {
+            bail!("cannot combine --skills/--agents/--commands with install kind subcommands")
         }
 
         let selection = match &args.target {
@@ -136,6 +162,7 @@ impl InstallSelection {
                     RequestedArtifacts::Named(names.names.clone())
                 },
                 agents: RequestedArtifacts::Skip,
+                commands: RequestedArtifacts::Skip,
             },
             Some(InstallTarget::Agents(names)) => Self {
                 skills: RequestedArtifacts::Skip,
@@ -144,11 +171,27 @@ impl InstallSelection {
                 } else {
                     RequestedArtifacts::Named(names.names.clone())
                 },
+                commands: RequestedArtifacts::Skip,
             },
-            None if args.skills.is_empty() && args.agents.is_empty() => Self {
-                skills: RequestedArtifacts::Prompt,
-                agents: RequestedArtifacts::Prompt,
+            Some(InstallTarget::Commands(names)) => Self {
+                skills: RequestedArtifacts::Skip,
+                agents: RequestedArtifacts::Skip,
+                commands: if names.names.is_empty() {
+                    RequestedArtifacts::Prompt
+                } else {
+                    RequestedArtifacts::Named(names.names.clone())
+                },
             },
+            None if args.skills.is_empty()
+                && args.agents.is_empty()
+                && args.commands.is_empty() =>
+            {
+                Self {
+                    skills: RequestedArtifacts::Prompt,
+                    agents: RequestedArtifacts::Prompt,
+                    commands: RequestedArtifacts::Prompt,
+                }
+            }
             None => Self {
                 skills: if args.skills.is_empty() {
                     RequestedArtifacts::Skip
@@ -159,6 +202,11 @@ impl InstallSelection {
                     RequestedArtifacts::Skip
                 } else {
                     RequestedArtifacts::Named(args.agents.clone())
+                },
+                commands: if args.commands.is_empty() {
+                    RequestedArtifacts::Skip
+                } else {
+                    RequestedArtifacts::Named(args.commands.clone())
                 },
             },
         };
@@ -172,14 +220,17 @@ fn resolve_interactive_selection(
     roots: &crate::models::SourceRoots,
 ) -> Result<Option<SelectedArtifacts>> {
     let use_tui = selection.skills == RequestedArtifacts::Prompt
-        && selection.agents == RequestedArtifacts::Prompt;
+        && selection.agents == RequestedArtifacts::Prompt
+        && selection.commands == RequestedArtifacts::Prompt;
 
     if !use_tui {
         let skills = resolve_skill_selection(&selection.skills, roots)?;
         let agents = resolve_agent_selection(&selection.agents, roots)?;
+        let commands = resolve_command_selection(&selection.commands, roots)?;
         return Ok(Some(SelectedArtifacts {
             selected_skills: skills.into_iter().map(|s| s.name).collect(),
             selected_agents: agents.into_iter().map(|a| a.name).collect(),
+            selected_commands: commands.into_iter().map(|c| c.name).collect(),
         }));
     }
 
@@ -212,17 +263,30 @@ fn resolve_interactive_selection(
         None => Vec::new(),
     };
 
-    if skills.is_empty() && agents.is_empty() {
+    let commands: Vec<DiscoveredCommand> = match roots.commands.as_deref() {
+        Some(root) => {
+            let inspection = inspect_commands(root)?;
+            for issue in &inspection.issues {
+                eprintln!("Warning: {issue}");
+            }
+            inspection.items
+        }
+        None => Vec::new(),
+    };
+
+    if skills.is_empty() && agents.is_empty() && commands.is_empty() {
         return Ok(Some(SelectedArtifacts {
             selected_skills: Vec::new(),
             selected_agents: Vec::new(),
+            selected_commands: Vec::new(),
         }));
     }
 
-    match run_interactive_selection(skills, agents)? {
+    match run_interactive_selection(skills, agents, commands)? {
         Some(result) => Ok(Some(SelectedArtifacts {
             selected_skills: result.selected_skills,
             selected_agents: result.selected_agents,
+            selected_commands: result.selected_commands,
         })),
         None => Ok(None),
     }
@@ -284,6 +348,34 @@ fn resolve_agent_selection(
     }
 }
 
+fn resolve_command_selection(
+    request: &RequestedArtifacts,
+    roots: &crate::models::SourceRoots,
+) -> Result<Vec<DiscoveredCommand>> {
+    match request {
+        RequestedArtifacts::Skip => Ok(Vec::new()),
+        RequestedArtifacts::Prompt => {
+            let root = roots
+                .commands
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("no commands source root configured"))?;
+            let inspection = inspect_commands(root)?;
+            for issue in &inspection.issues {
+                eprintln!("Warning: {issue}");
+            }
+            prompt_commands(inspection.items)
+        }
+        RequestedArtifacts::Named(names) => {
+            let root = roots
+                .commands
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("no commands source root configured"))?;
+            let inspection = inspect_commands(root)?;
+            select_named_commands(names, inspection.items)
+        }
+    }
+}
+
 fn select_named_skills(
     names: &[String],
     discovered: Vec<DiscoveredSkill>,
@@ -318,6 +410,25 @@ fn select_named_agents(
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("unknown agent '{name}'"))?;
         selected.push(agent);
+    }
+    Ok(selected)
+}
+
+fn select_named_commands(
+    names: &[String],
+    discovered: Vec<DiscoveredCommand>,
+) -> Result<Vec<DiscoveredCommand>> {
+    let map = discovered
+        .into_iter()
+        .map(|command| (command.name.clone(), command))
+        .collect::<BTreeMap<_, _>>();
+    let mut selected = Vec::new();
+    for name in dedupe(names) {
+        let command = map
+            .get(&name)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("unknown command '{name}'"))?;
+        selected.push(command);
     }
     Ok(selected)
 }
@@ -358,6 +469,28 @@ fn prompt_agents(discovered: Vec<DiscoveredAgent>) -> Result<Vec<DiscoveredAgent
         .collect::<Vec<_>>();
     let selection = MultiSelect::with_theme(&ColorfulTheme::default())
         .with_prompt("Select agents to install")
+        .items(&labels)
+        .interact()?;
+    Ok(selection
+        .into_iter()
+        .map(|index| discovered[index].clone())
+        .collect())
+}
+
+fn prompt_commands(discovered: Vec<DiscoveredCommand>) -> Result<Vec<DiscoveredCommand>> {
+    if discovered.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let labels = discovered
+        .iter()
+        .map(|command| {
+            let desc = command.description.as_deref().unwrap_or("");
+            format!("{:<24} {}", command.name, desc)
+        })
+        .collect::<Vec<_>>();
+    let selection = MultiSelect::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select commands to install")
         .items(&labels)
         .interact()?;
     Ok(selection
@@ -465,6 +598,55 @@ fn install_agent(
     Ok(InstallOutcome::Installed(agent.name.clone()))
 }
 
+fn install_command(
+    paths: &ProjectPaths,
+    manifest: &mut CatalogManifest,
+    command: &DiscoveredCommand,
+    force: bool,
+) -> Result<InstallOutcome> {
+    let installed_rel_path = PathBuf::from("commands").join(format!("{}.md", command.name));
+    let installed_path = paths.installed_path(&installed_rel_path);
+    let source_hash = hash_command_file(&command.source_path)?;
+
+    if installed_path.exists() && !force {
+        match manifest
+            .commands
+            .iter()
+            .find(|entry| entry.name == command.name)
+        {
+            Some(existing) => {
+                let current_hash = hash_command_file(&installed_path)?;
+                if current_hash != existing.installed_hash {
+                    return Ok(InstallOutcome::Skipped(
+                        command.name.clone(),
+                        "local installed copy differs from the last recorded manifest hash"
+                            .to_string(),
+                    ));
+                }
+            }
+            None => {
+                return Ok(InstallOutcome::Skipped(
+                    command.name.clone(),
+                    "an untracked local command already exists at the install path".to_string(),
+                ));
+            }
+        }
+    }
+
+    atomic_install_command(&command.source_path, &installed_path, &paths.tmp_dir)?;
+    let installed_hash = hash_command_file(&installed_path)?;
+    let entry = InstalledCommand {
+        name: command.name.clone(),
+        description: command.description.clone(),
+        source_rel_path: command.source_rel_path.clone(),
+        installed_rel_path,
+        source_hash,
+        installed_hash,
+    };
+    upsert_command(manifest, entry);
+    Ok(InstallOutcome::Installed(command.name.clone()))
+}
+
 fn upsert_skill(manifest: &mut CatalogManifest, entry: InstalledSkill) {
     if let Some(existing) = manifest
         .skills
@@ -495,6 +677,21 @@ fn upsert_agent(manifest: &mut CatalogManifest, entry: InstalledAgent) {
     }
 }
 
+fn upsert_command(manifest: &mut CatalogManifest, entry: InstalledCommand) {
+    if let Some(existing) = manifest
+        .commands
+        .iter_mut()
+        .find(|item| item.name == entry.name)
+    {
+        *existing = entry;
+    } else {
+        manifest.commands.push(entry);
+        manifest
+            .commands
+            .sort_by(|left, right| left.name.cmp(&right.name));
+    }
+}
+
 fn dedupe(names: &[String]) -> Vec<String> {
     let mut seen = BTreeSet::new();
     let mut ordered = Vec::new();
@@ -510,6 +707,7 @@ fn print_summary(
     paths: &ProjectPaths,
     installed_skills: &[String],
     installed_agents: &[String],
+    installed_commands: &[String],
     skipped: &[String],
     notes: &[String],
 ) {
@@ -545,6 +743,24 @@ fn print_summary(
         );
         for agent in installed_agents {
             println!("- {agent}");
+        }
+        println!();
+    }
+
+    if !installed_commands.is_empty() {
+        let label = if installed_commands.len() == 1 {
+            "command"
+        } else {
+            "commands"
+        };
+        println!(
+            "Installed {} {} into {}",
+            installed_commands.len(),
+            label,
+            paths.commands_dir.display()
+        );
+        for command in installed_commands {
+            println!("- {command}");
         }
         println!();
     }

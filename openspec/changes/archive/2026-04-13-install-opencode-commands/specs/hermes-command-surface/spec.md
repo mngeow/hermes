@@ -1,8 +1,4 @@
-## Purpose
-
-Define the first end-user `hermes` CLI command surface for initializing a workspace and managing installed OpenCode artifacts.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Provide the first Hermes command surface
 The system SHALL provide a `hermes` CLI with `init`, `configure`, `install`, `list`, `sync`, `remove`, and `doctor` commands for managing local OpenCode skills, agents, and commands.

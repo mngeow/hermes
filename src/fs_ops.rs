@@ -18,11 +18,13 @@ pub fn ensure_workspace(
     opencode_dir: &Path,
     skills_dir: &Path,
     agents_dir: &Path,
+    commands_dir: &Path,
     tmp_dir: &Path,
 ) -> Result<()> {
     ensure_dir(opencode_dir)?;
     ensure_dir(skills_dir)?;
     ensure_dir(agents_dir)?;
+    ensure_dir(commands_dir)?;
     ensure_dir(tmp_dir)?;
     Ok(())
 }
@@ -133,6 +135,14 @@ pub fn atomic_install_agent(source: &Path, destination: &Path, tmp_root: &Path) 
     ensure_dir(tmp_root)?;
     let temp_path = unique_temp_path(tmp_root, "agent", Some("md"));
     let backup_path = unique_temp_path(tmp_root, "agent-backup", Some("md"));
+    copy_file(source, &temp_path)?;
+    swap_file(&temp_path, destination, &backup_path)
+}
+
+pub fn atomic_install_command(source: &Path, destination: &Path, tmp_root: &Path) -> Result<()> {
+    ensure_dir(tmp_root)?;
+    let temp_path = unique_temp_path(tmp_root, "command", Some("md"));
+    let backup_path = unique_temp_path(tmp_root, "command-backup", Some("md"));
     copy_file(source, &temp_path)?;
     swap_file(&temp_path, destination, &backup_path)
 }

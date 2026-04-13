@@ -3,6 +3,7 @@ use std::fs;
 use anyhow::{bail, Result};
 
 use crate::agents::{inspect_agents, validate_installed_agent};
+use crate::commands::{inspect_commands, validate_installed_command};
 use crate::manifest::{load_manifest, resolve_source_roots};
 use crate::models::{ProjectPaths, SourceOverrides};
 use crate::skills::{inspect_skills, validate_installed_skill};
@@ -12,7 +13,7 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides) -> Result<()> {
     let roots = resolve_source_roots(overrides, manifest.as_ref())?;
     let mut issues = Vec::new();
 
-    if roots.skills.is_none() && roots.agents.is_none() {
+    if roots.skills.is_none() && roots.agents.is_none() && roots.commands.is_none() {
         issues.push("no source roots are configured".to_string());
     }
 
@@ -36,6 +37,18 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides) -> Result<()> {
             ));
         } else {
             let inspection = inspect_agents(root)?;
+            issues.extend(inspection.issues);
+        }
+    }
+
+    if let Some(root) = roots.commands.as_deref() {
+        if !root.exists() {
+            issues.push(format!(
+                "configured commands source root does not exist: {}",
+                root.display()
+            ));
+        } else {
+            let inspection = inspect_commands(root)?;
             issues.extend(inspection.issues);
         }
     }
@@ -72,6 +85,23 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides) -> Result<()> {
                     issues.push(format!(
                         "installed agent '{}' is invalid: {err:#}",
                         agent.name
+                    ));
+                }
+            }
+
+            for command in &manifest.commands {
+                let installed_path = paths.installed_path(&command.installed_rel_path);
+                if !installed_path.exists() {
+                    issues.push(format!(
+                        "installed command path is missing: {}",
+                        installed_path.display()
+                    ));
+                    continue;
+                }
+                if let Err(err) = validate_installed_command(&installed_path) {
+                    issues.push(format!(
+                        "installed command '{}' is invalid: {err:#}",
+                        command.name
                     ));
                 }
             }
@@ -116,6 +146,33 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides) -> Result<()> {
                         if !tracked.iter().any(|tracked_name| *tracked_name == name) {
                             issues.push(format!(
                                 "untracked installed agent file: {}",
+                                entry.path().display()
+                            ));
+                        }
+                    }
+                }
+            }
+
+            if paths.commands_dir.exists() {
+                let mut tracked = manifest
+                    .commands
+                    .iter()
+                    .map(|command| command.name.as_str())
+                    .collect::<Vec<_>>();
+                tracked.sort_unstable();
+                for entry in fs::read_dir(&paths.commands_dir)?.collect::<Result<Vec<_>, _>>()? {
+                    if entry.file_type()?.is_file()
+                        && entry.path().extension().and_then(|ext| ext.to_str()) == Some("md")
+                    {
+                        let name = entry
+                            .path()
+                            .file_stem()
+                            .and_then(|stem| stem.to_str())
+                            .unwrap_or_default()
+                            .to_string();
+                        if !tracked.iter().any(|tracked_name| *tracked_name == name) {
+                            issues.push(format!(
+                                "untracked installed command file: {}",
                                 entry.path().display()
                             ));
                         }

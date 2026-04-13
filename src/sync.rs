@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 
 use crate::cli::SyncArgs;
-use crate::fs_ops::{atomic_install_agent, atomic_install_skill};
-use crate::hashing::{hash_agent_file, hash_skill_dir};
+use crate::fs_ops::{atomic_install_agent, atomic_install_command, atomic_install_skill};
+use crate::hashing::{hash_agent_file, hash_command_file, hash_skill_dir};
 use crate::manifest::{load_manifest, resolve_source_roots, save_manifest};
 use crate::models::{ProjectPaths, SourceOverrides};
 
@@ -15,8 +15,9 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: SyncArgs) ->
     })?;
     let roots = resolve_source_roots(overrides, Some(&manifest))?;
 
-    let sync_skills = args.skills || (!args.skills && !args.agents);
-    let sync_agents = args.agents || (!args.skills && !args.agents);
+    let sync_skills = args.skills || (!args.skills && !args.agents && !args.commands);
+    let sync_agents = args.agents || (!args.skills && !args.agents && !args.commands);
+    let sync_commands = args.commands || (!args.skills && !args.agents && !args.commands);
 
     if sync_skills {
         match roots.skills.as_deref() {
@@ -119,6 +120,58 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: SyncArgs) ->
                 bail!("no agents source root configured; pass --agents-source or run hermes configure")
             }
             None => println!("Skipping agents: no agents source root configured"),
+        }
+    }
+
+    if sync_commands {
+        match roots.commands.as_deref() {
+            Some(root) => {
+                // No longer store source root in manifest
+                for command in &mut manifest.commands {
+                    let source_path = root.join(&command.source_rel_path);
+                    let installed_path = paths.installed_path(&command.installed_rel_path);
+
+                    if !source_path.exists() {
+                        eprintln!(
+                            "Skipping {}\nKind: command\nReason: source command no longer exists",
+                            command.name
+                        );
+                        continue;
+                    }
+                    if !installed_path.exists() {
+                        eprintln!(
+                            "Skipping {}\nKind: command\nReason: installed command path is missing",
+                            command.name
+                        );
+                        continue;
+                    }
+
+                    let current_installed_hash = hash_command_file(&installed_path)?;
+                    if !args.force && current_installed_hash != command.installed_hash {
+                        eprintln!(
+                            "Skipping {}\nKind: command\nReason: local installed copy differs from the last recorded manifest hash",
+                            command.name
+                        );
+                        continue;
+                    }
+
+                    let current_source_hash = hash_command_file(&source_path)?;
+                    if current_source_hash == command.source_hash
+                        && current_installed_hash == command.installed_hash
+                    {
+                        continue;
+                    }
+
+                    atomic_install_command(&source_path, &installed_path, &paths.tmp_dir)?;
+                    command.source_hash = current_source_hash;
+                    command.installed_hash = hash_command_file(&installed_path)?;
+                    println!("Synced command {}", command.name);
+                }
+            }
+            None if args.commands => {
+                bail!("no commands source root configured; pass --commands-source or run hermes configure")
+            }
+            None => println!("Skipping commands: no commands source root configured"),
         }
     }
 

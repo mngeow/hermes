@@ -12,6 +12,9 @@ pub struct Cli {
     #[arg(long, global = true, value_name = "PATH")]
     pub agents_source: Option<PathBuf>,
 
+    #[arg(long, global = true, value_name = "PATH")]
+    pub commands_source: Option<PathBuf>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -37,6 +40,9 @@ pub struct ConfigureArgs {
 
     #[arg(long, value_name = "PATH")]
     pub agents_source: Option<PathBuf>,
+
+    #[arg(long, value_name = "PATH")]
+    pub commands_source: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -46,6 +52,9 @@ pub struct InstallArgs {
 
     #[arg(long, value_name = "AGENT", num_args = 1..)]
     pub agents: Vec<String>,
+
+    #[arg(long, value_name = "COMMAND", num_args = 1..)]
+    pub commands: Vec<String>,
 
     #[arg(long)]
     pub force: bool,
@@ -58,6 +67,7 @@ pub struct InstallArgs {
 pub enum InstallTarget {
     Skills(NameList),
     Agents(NameList),
+    Commands(NameList),
 }
 
 #[derive(Debug, Args)]
@@ -79,6 +89,7 @@ pub struct ListArgs {
 pub enum ListTarget {
     Skills,
     Agents,
+    Commands,
     All,
 }
 
@@ -94,6 +105,9 @@ pub struct SyncArgs {
     pub agents: bool,
 
     #[arg(long)]
+    pub commands: bool,
+
+    #[arg(long)]
     pub force: bool,
 }
 
@@ -107,6 +121,7 @@ pub struct RemoveArgs {
 pub enum RemoveTarget {
     Skills(SingleName),
     Agents(SingleName),
+    Commands(SingleName),
 }
 
 #[derive(Debug, Args)]

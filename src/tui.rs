@@ -8,12 +8,13 @@ use ratatui::{
     Frame,
 };
 
-use crate::models::{DiscoveredAgent, DiscoveredSkill};
+use crate::models::{DiscoveredAgent, DiscoveredCommand, DiscoveredSkill};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
     Skills,
     Agents,
+    Commands,
 }
 
 #[derive(Debug, Clone)]
@@ -21,8 +22,10 @@ pub struct SelectionState {
     pub focus: Focus,
     pub skills: Vec<SelectableSkill>,
     pub agents: Vec<SelectableAgent>,
+    pub commands: Vec<SelectableCommand>,
     pub skill_list_state: ListState,
     pub agent_list_state: ListState,
+    pub command_list_state: ListState,
     pub confirmed: bool,
     pub cancelled: bool,
 }
@@ -40,13 +43,24 @@ pub struct SelectableAgent {
 }
 
 #[derive(Debug, Clone)]
+pub struct SelectableCommand {
+    pub command: DiscoveredCommand,
+    pub selected: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct SelectionResult {
     pub selected_skills: Vec<String>,
     pub selected_agents: Vec<String>,
+    pub selected_commands: Vec<String>,
 }
 
 impl SelectionState {
-    pub fn new(skills: Vec<DiscoveredSkill>, agents: Vec<DiscoveredAgent>) -> Self {
+    pub fn new(
+        skills: Vec<DiscoveredSkill>,
+        agents: Vec<DiscoveredAgent>,
+        commands: Vec<DiscoveredCommand>,
+    ) -> Self {
         let mut skill_list_state = ListState::default();
         if !skills.is_empty() {
             skill_list_state.select(Some(0));
@@ -55,6 +69,11 @@ impl SelectionState {
         let mut agent_list_state = ListState::default();
         if !agents.is_empty() {
             agent_list_state.select(Some(0));
+        }
+
+        let mut command_list_state = ListState::default();
+        if !commands.is_empty() {
+            command_list_state.select(Some(0));
         }
 
         Self {
@@ -73,8 +92,16 @@ impl SelectionState {
                     selected: false,
                 })
                 .collect(),
+            commands: commands
+                .into_iter()
+                .map(|command| SelectableCommand {
+                    command,
+                    selected: false,
+                })
+                .collect(),
             skill_list_state,
             agent_list_state,
+            command_list_state,
             confirmed: false,
             cancelled: false,
         }
@@ -92,6 +119,13 @@ impl SelectionState {
             Focus::Agents => {
                 if let Some(index) = self.agent_list_state.selected() {
                     if let Some(item) = self.agents.get_mut(index) {
+                        item.selected = !item.selected;
+                    }
+                }
+            }
+            Focus::Commands => {
+                if let Some(index) = self.command_list_state.selected() {
+                    if let Some(item) = self.commands.get_mut(index) {
                         item.selected = !item.selected;
                     }
                 }
@@ -124,6 +158,18 @@ impl SelectionState {
                     .map(|i| (i + 1) % len)
                     .unwrap_or(0);
                 self.agent_list_state.select(Some(next));
+            }
+            Focus::Commands => {
+                let len = self.commands.len();
+                if len == 0 {
+                    return;
+                }
+                let next = self
+                    .command_list_state
+                    .selected()
+                    .map(|i| (i + 1) % len)
+                    .unwrap_or(0);
+                self.command_list_state.select(Some(next));
             }
         }
     }
@@ -164,13 +210,31 @@ impl SelectionState {
                 };
                 self.agent_list_state.select(Some(prev));
             }
+            Focus::Commands => {
+                let len = self.commands.len();
+                if len == 0 {
+                    return;
+                }
+                let prev = self
+                    .command_list_state
+                    .selected()
+                    .map(|i| i.saturating_sub(1))
+                    .unwrap_or(len - 1);
+                let prev = if prev == 0 && self.command_list_state.selected() == Some(0) {
+                    len - 1
+                } else {
+                    prev
+                };
+                self.command_list_state.select(Some(prev));
+            }
         }
     }
 
     pub fn switch_focus(&mut self) {
         self.focus = match self.focus {
             Focus::Skills => Focus::Agents,
-            Focus::Agents => Focus::Skills,
+            Focus::Agents => Focus::Commands,
+            Focus::Commands => Focus::Skills,
         };
     }
 
@@ -208,9 +272,17 @@ impl SelectionState {
             .map(|item| item.agent.name.clone())
             .collect();
 
+        let selected_commands: Vec<String> = self
+            .commands
+            .iter()
+            .filter(|item| item.selected)
+            .map(|item| item.command.name.clone())
+            .collect();
+
         Some(SelectionResult {
             selected_skills,
             selected_agents,
+            selected_commands,
         })
     }
 }
@@ -218,11 +290,12 @@ impl SelectionState {
 pub fn run_interactive_selection(
     skills: Vec<DiscoveredSkill>,
     agents: Vec<DiscoveredAgent>,
+    commands: Vec<DiscoveredCommand>,
 ) -> io::Result<Option<SelectionResult>> {
     let mut terminal = ratatui::init();
     terminal.clear()?;
 
-    let mut state = SelectionState::new(skills, agents);
+    let mut state = SelectionState::new(skills, agents, commands);
 
     let result = loop {
         terminal.draw(|frame| draw(frame, &mut state))?;
@@ -266,11 +339,16 @@ fn draw(frame: &mut Frame, state: &mut SelectionState) {
     let [top, bottom] =
         Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]).areas(frame.area());
 
-    let [skills_area, agents_area] =
-        Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(top);
+    let [skills_area, agents_area, commands_area] = Layout::horizontal([
+        Constraint::Fill(1),
+        Constraint::Fill(1),
+        Constraint::Fill(1),
+    ])
+    .areas(top);
 
     draw_skills_list(frame, state, skills_area);
     draw_agents_list(frame, state, agents_area);
+    draw_commands_list(frame, state, commands_area);
     draw_help(frame, bottom);
 }
 
@@ -347,6 +425,41 @@ fn draw_agents_list(frame: &mut Frame, state: &mut SelectionState, area: Rect) {
         .highlight_symbol("> ");
 
     frame.render_stateful_widget(list, area, &mut state.agent_list_state);
+}
+
+fn draw_commands_list(frame: &mut Frame, state: &mut SelectionState, area: Rect) {
+    let focus_style = if state.focus == Focus::Commands {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default()
+    };
+
+    let block = Block::default()
+        .title(" Commands ")
+        .borders(Borders::ALL)
+        .border_style(focus_style);
+
+    let items: Vec<ListItem> = state
+        .commands
+        .iter()
+        .map(|item| {
+            let checkbox = if item.selected { "[x]" } else { "[ ]" };
+            let content = format!("{} {}", checkbox, item.command.name);
+            let style = if item.selected {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default()
+            };
+            ListItem::new(content).style(style)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_style(Style::default().bg(Color::DarkGray))
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(list, area, &mut state.command_list_state);
 }
 
 fn draw_help(frame: &mut Frame, area: Rect) {

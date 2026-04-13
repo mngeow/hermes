@@ -14,6 +14,13 @@ pub fn hash_agent_file(path: &Path) -> Result<String> {
     Ok(format!("sha256:{:x}", hasher.finalize()))
 }
 
+pub fn hash_command_file(path: &Path) -> Result<String> {
+    let bytes = fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    Ok(format!("sha256:{:x}", hasher.finalize()))
+}
+
 pub fn hash_skill_dir(path: &Path) -> Result<String> {
     let mut files = Vec::new();
     let walker = WalkDir::new(path)

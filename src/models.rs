@@ -47,10 +47,13 @@ pub struct CatalogManifest {
     pub install_mode: InstallMode,
     pub skills_source_root: Option<PathBuf>,
     pub agents_source_root: Option<PathBuf>,
+    pub commands_source_root: Option<PathBuf>,
     #[serde(default)]
     pub skills: Vec<InstalledSkill>,
     #[serde(default)]
     pub agents: Vec<InstalledAgent>,
+    #[serde(default)]
+    pub commands: Vec<InstalledCommand>,
 }
 
 impl Default for CatalogManifest {
@@ -60,8 +63,10 @@ impl Default for CatalogManifest {
             install_mode: InstallMode::Copy,
             skills_source_root: None,
             agents_source_root: None,
+            commands_source_root: None,
             skills: Vec::new(),
             agents: Vec::new(),
+            commands: Vec::new(),
         }
     }
 }
@@ -87,6 +92,16 @@ pub struct InstalledAgent {
     pub installed_hash: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstalledCommand {
+    pub name: String,
+    pub description: Option<String>,
+    pub source_rel_path: PathBuf,
+    pub installed_rel_path: PathBuf,
+    pub source_hash: String,
+    pub installed_hash: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct DiscoveredSkill {
     pub name: String,
@@ -104,21 +119,31 @@ pub struct DiscoveredAgent {
     pub source_rel_path: PathBuf,
 }
 
+#[derive(Debug, Clone)]
+pub struct DiscoveredCommand {
+    pub name: String,
+    pub description: Option<String>,
+    pub source_path: PathBuf,
+    pub source_rel_path: PathBuf,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct SourceOverrides {
     pub skills: Option<PathBuf>,
     pub agents: Option<PathBuf>,
+    pub commands: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct SourceRoots {
     pub skills: Option<PathBuf>,
     pub agents: Option<PathBuf>,
+    pub commands: Option<PathBuf>,
 }
 
 impl SourceRoots {
     pub fn is_empty(&self) -> bool {
-        self.skills.is_none() && self.agents.is_none()
+        self.skills.is_none() && self.agents.is_none() && self.commands.is_none()
     }
 }
 
@@ -127,6 +152,7 @@ pub struct ProjectPaths {
     pub opencode_dir: PathBuf,
     pub skills_dir: PathBuf,
     pub agents_dir: PathBuf,
+    pub commands_dir: PathBuf,
     pub tmp_dir: PathBuf,
     pub catalog_path: PathBuf,
 }
@@ -136,12 +162,14 @@ impl ProjectPaths {
         let opencode_dir = root.join(".opencode");
         let skills_dir = opencode_dir.join("skills");
         let agents_dir = opencode_dir.join("agents");
+        let commands_dir = opencode_dir.join("commands");
         let tmp_dir = opencode_dir.join(".tmp");
         let catalog_path = opencode_dir.join("catalog.toml");
         Self {
             opencode_dir,
             skills_dir,
             agents_dir,
+            commands_dir,
             tmp_dir,
             catalog_path,
         }
@@ -172,4 +200,5 @@ impl<T> Default for Inspection<T> {
 pub struct UserConfig {
     pub skills_source_root: Option<PathBuf>,
     pub agents_source_root: Option<PathBuf>,
+    pub commands_source_root: Option<PathBuf>,
 }

@@ -1,8 +1,4 @@
-## Purpose
-
-Define how Hermes persists and resolves user-level default skills, agents, and commands source roots from `~/.config/hermes_cli/config.toml`.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Persist default source roots in a user-level Hermes config file
 The system SHALL persist default `skills_source_root`, `agents_source_root`, and `commands_source_root` values in `~/.config/hermes_cli/config.toml`.

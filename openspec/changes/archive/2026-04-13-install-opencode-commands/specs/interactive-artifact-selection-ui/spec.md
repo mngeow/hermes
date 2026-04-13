@@ -1,8 +1,4 @@
-## Purpose
-
-Define the interactive terminal UI used by `hermes install` when users choose installable skills, agents, and commands without passing explicit artifact names.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Provide a terminal UI for interactive artifact selection
 The system SHALL provide a terminal UI for interactive install selection that lets users browse installable skills, agents, and commands without passing artifact names in command arguments.
@@ -28,11 +24,3 @@ The system SHALL allow users to navigate, select, confirm, and cancel install ch
 #### Scenario: Cancel interactive selection
 - **WHEN** the user cancels from the install selection UI
 - **THEN** the CLI SHALL exit the interactive install flow without writing changes to `.opencode/`
-
-### Requirement: Handle unavailable interactive terminal sessions clearly
-The system SHALL fail clearly when interactive selection is requested implicitly but no usable terminal UI session can be opened.
-
-#### Scenario: No TTY is available for interactive install
-- **WHEN** the user runs `hermes install` without explicit artifact names in a non-interactive terminal session
-- **THEN** the CLI SHALL exit with a clear error explaining that interactive selection requires a terminal
-- **AND** tell the user to rerun in a TTY or provide explicit artifact names

@@ -21,6 +21,11 @@ pub struct AgentFrontmatter {
     pub has_body: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct CommandFrontmatter {
+    pub description: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct RawSkillFrontmatter {
     name: String,
@@ -32,6 +37,11 @@ struct RawAgentFrontmatter {
     description: Option<String>,
     mode: Option<String>,
     prompt: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawCommandFrontmatter {
+    description: Option<String>,
 }
 
 pub fn parse_skill_file(path: &Path) -> Result<SkillFrontmatter> {
@@ -76,6 +86,26 @@ pub fn parse_agent_file(path: &Path) -> Result<AgentFrontmatter> {
         has_external_prompt,
         has_body: !body.trim().is_empty(),
     })
+}
+
+pub fn parse_command_file(path: &Path) -> Result<CommandFrontmatter> {
+    let (yaml, body) = read_frontmatter(path)?;
+
+    // Parse frontmatter if present; empty frontmatter is allowed for commands
+    let raw: RawCommandFrontmatter = if yaml.trim().is_empty() {
+        RawCommandFrontmatter { description: None }
+    } else {
+        serde_yaml::from_str(&yaml)
+            .with_context(|| format!("failed to parse command frontmatter in {}", path.display()))?
+    };
+
+    let description = raw.description.filter(|d| !d.trim().is_empty());
+
+    if body.trim().is_empty() {
+        bail!("command template body must not be empty")
+    }
+
+    Ok(CommandFrontmatter { description })
 }
 
 fn read_frontmatter(path: &Path) -> Result<(String, String)> {

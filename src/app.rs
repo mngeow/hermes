@@ -3,6 +3,7 @@ use clap::Parser;
 
 use crate::agents::inspect_agents;
 use crate::cli::{Cli, Commands, InitArgs, ListArgs, ListTarget};
+use crate::commands::inspect_commands;
 use crate::configure;
 use crate::doctor;
 use crate::fs_ops::ensure_workspace;
@@ -20,6 +21,7 @@ pub fn run() -> Result<()> {
     let overrides = SourceOverrides {
         skills: cli.skills_source.clone(),
         agents: cli.agents_source.clone(),
+        commands: cli.commands_source.clone(),
     };
 
     match cli.command {
@@ -39,7 +41,7 @@ fn run_init(paths: &ProjectPaths, overrides: &SourceOverrides, _args: InitArgs) 
     if roots.is_empty() {
         bail!(
             "hermes init requires at least one source root; \
-             pass --skills-source or --agents-source, \
+             pass --skills-source, --agents-source, or --commands-source, \
              or configure defaults with hermes configure"
         )
     }
@@ -49,6 +51,7 @@ fn run_init(paths: &ProjectPaths, overrides: &SourceOverrides, _args: InitArgs) 
         &paths.opencode_dir,
         &paths.skills_dir,
         &paths.agents_dir,
+        &paths.commands_dir,
         &paths.tmp_dir,
     )?;
 
@@ -72,10 +75,13 @@ fn run_list(paths: &ProjectPaths, overrides: &SourceOverrides, args: ListArgs) -
         match target {
             ListTarget::Skills => list_available_skills(roots.skills.as_deref())?,
             ListTarget::Agents => list_available_agents(roots.agents.as_deref())?,
+            ListTarget::Commands => list_available_commands(roots.commands.as_deref())?,
             ListTarget::All => {
                 list_available_skills(roots.skills.as_deref())?;
                 println!();
                 list_available_agents(roots.agents.as_deref())?;
+                println!();
+                list_available_commands(roots.commands.as_deref())?;
             }
         }
         return Ok(());
@@ -108,6 +114,17 @@ fn run_list(paths: &ProjectPaths, overrides: &SourceOverrides, args: ListArgs) -
                     }
                 }
             }
+            ListTarget::Commands => {
+                println!("Installed commands:");
+                if manifest.commands.is_empty() {
+                    println!("(none)");
+                } else {
+                    for command in &manifest.commands {
+                        let desc = command.description.as_deref().unwrap_or("");
+                        println!("- {}: {}", command.name, desc);
+                    }
+                }
+            }
             ListTarget::All => {
                 println!("Installed skills:");
                 if manifest.skills.is_empty() {
@@ -128,6 +145,16 @@ fn run_list(paths: &ProjectPaths, overrides: &SourceOverrides, args: ListArgs) -
                             .map(|mode| format!(" ({mode})"))
                             .unwrap_or_default();
                         println!("- {}: {}{}", agent.name, agent.description, suffix);
+                    }
+                }
+                println!();
+                println!("Installed commands:");
+                if manifest.commands.is_empty() {
+                    println!("(none)");
+                } else {
+                    for command in &manifest.commands {
+                        let desc = command.description.as_deref().unwrap_or("");
+                        println!("- {}: {}", command.name, desc);
                     }
                 }
             }
@@ -172,6 +199,28 @@ fn list_available_agents(root: Option<&std::path::Path>) -> Result<()> {
                 .map(|mode| format!(" ({mode})"))
                 .unwrap_or_default();
             println!("- {}: {}{}", agent.name, agent.description, suffix);
+        }
+    }
+    if !inspection.issues.is_empty() {
+        println!();
+        println!("Discovery warnings:");
+        for issue in inspection.issues {
+            println!("- {issue}");
+        }
+    }
+    Ok(())
+}
+
+fn list_available_commands(root: Option<&std::path::Path>) -> Result<()> {
+    let root = root.ok_or_else(|| anyhow::anyhow!("no commands source root configured"))?;
+    let inspection = inspect_commands(root)?;
+    println!("Available commands:");
+    if inspection.items.is_empty() {
+        println!("(none)");
+    } else {
+        for command in inspection.items {
+            let desc = command.description.as_deref().unwrap_or("");
+            println!("- {}: {}", command.name, desc);
         }
     }
     if !inspection.issues.is_empty() {

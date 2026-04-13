@@ -38,6 +38,18 @@ pub fn run(paths: &ProjectPaths, args: RemoveArgs) -> Result<()> {
             remove_path_if_exists(&paths.installed_path(&entry.installed_rel_path))?;
             println!("Removed agent {}", entry.name);
         }
+        RemoveTarget::Commands(item) => {
+            let index = manifest
+                .commands
+                .iter()
+                .position(|command| command.name == item.name)
+                .ok_or_else(|| {
+                    anyhow::anyhow!("installed command '{}' not found in catalog", item.name)
+                })?;
+            let entry = manifest.commands.remove(index);
+            remove_path_if_exists(&paths.installed_path(&entry.installed_rel_path))?;
+            println!("Removed command {}", entry.name);
+        }
     }
     save_manifest(paths, &manifest)?;
     println!("Manifest updated: {}", paths.catalog_path.display());

@@ -53,6 +53,11 @@ pub fn resolve_source_roots(
             user_config.agents_source_root.as_deref(),
             "OPENCODE_AGENTS_SOURCE",
         )?,
+        commands: resolve_source_root(
+            overrides.commands.as_deref(),
+            user_config.commands_source_root.as_deref(),
+            "OPENCODE_COMMANDS_SOURCE",
+        )?,
     })
 }
 

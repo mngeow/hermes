@@ -1,6 +1,7 @@
 mod agents;
 mod app;
 mod cli;
+mod commands;
 mod configure;
 mod doctor;
 mod frontmatter;

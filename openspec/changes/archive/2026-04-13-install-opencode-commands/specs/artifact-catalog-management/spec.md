@@ -1,8 +1,4 @@
-## Purpose
-
-Define how `hermes` initializes the local `.opencode` workspace, records installed artifacts in a unified catalog, resolves source roots, and safely manages sync, removal, and validation.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Initialize a project-local OpenCode artifact workspace
 The system SHALL create a project-local `.opencode` workspace with `skills/`, `agents/`, `commands/`, and `catalog.toml` when initializing the installer in a project and when an install operation needs to bootstrap a new project.
@@ -74,18 +70,6 @@ The system SHALL detect when an installed skill, agent, or command differs from 
 - **WHEN** the user reruns `hermes install` or `hermes sync` with `--force`
 - **THEN** the CLI MAY overwrite the modified local copy with the source version
 - **AND** MUST update the catalog hashes accordingly
-
-### Requirement: Synchronize managed artifacts from source
-The system SHALL support a sync operation that updates installed artifacts when the source changes and the local installed copy has not been edited.
-
-#### Scenario: Sync an unchanged local copy to a new source version
-- **WHEN** the source hash changed and the installed artifact hash still matches the catalog's recorded `installed_hash`
-- **THEN** the CLI SHALL reinstall the artifact from source
-- **AND** update both source and installed hashes in the catalog
-
-#### Scenario: Leave an up-to-date artifact unchanged
-- **WHEN** the source and installed hashes still match the catalog
-- **THEN** sync MUST leave the artifact unchanged
 
 ### Requirement: Remove and inspect managed artifacts
 The system SHALL support removal and inspection of managed skills, agents, and commands.
