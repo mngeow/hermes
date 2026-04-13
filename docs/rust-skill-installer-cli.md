@@ -596,13 +596,13 @@ sequenceDiagram
 
 ### Interactive install (TUI)
 
-When running `hermes install` without explicit artifact names in an interactive terminal, the CLI opens a full-screen terminal UI (TUI) for selecting skills and agents. The TUI uses `ratatui` for rendering and presents skills and agents in side-by-side panes.
+When running `hermes install` without explicit artifact names in an interactive terminal, the CLI opens a full-screen terminal UI (TUI) for selecting skills, agents, and commands. The TUI uses `ratatui` for rendering, shows a Hermes ASCII-art header, and presents the selection panes in a vertically stacked layout.
 
 **Keyboard controls:**
 
 | Key | Action |
 |-----|--------|
-| `Tab` | Switch focus between skills and agents panes |
+| `Tab` | Switch focus between the stacked skills, agents, and commands panes |
 | `↑` / `↓` or `j` / `k` | Navigate up/down in the current pane |
 | `Space` or `Enter` | Toggle selection of the highlighted item |
 | `c` | Confirm selections and proceed with install |
@@ -647,22 +647,29 @@ Hint: rerun with --force if you want to overwrite local changes
 
 ## Interactive Install TUI
 
-When `hermes install` is run without explicit artifact names in an interactive terminal, the CLI launches a full-screen TUI for selecting skills and agents to install.
+When `hermes install` is run without explicit artifact names in an interactive terminal, the CLI launches a full-screen TUI for selecting skills, agents, and commands to install.
 
 ### Layout
 
-The TUI displays skills and agents in side-by-side panes:
+The TUI displays a Hermes-branded ASCII-art banner at the top, followed by vertically stacked panes:
 
-- **Left pane**: Available skills from the configured skills source root
-- **Right pane**: Available agents from the configured agents source root
+- **Skills pane**: Available skills from the configured skills source root
+- **Agents pane**: Available agents from the configured agents source root
+- **Commands pane**: Available commands from the configured commands source root
 
-Each pane shows the artifact name, description, and selection state. The active pane is highlighted.
+Each pane shows the artifact name, description, and selection state. The active pane is highlighted with a thicker border and a colored, bold title.
+
+### Visual styling
+
+- The TUI uses a darker theme with tinted pane backgrounds and dimmed descriptions.
+- The focused pane uses a thicker border and an accent-colored title so the active section is easy to spot.
+- Selected items show `[x]` and unselected items show `[ ]`, so selection state remains visible even on terminals with limited color support.
 
 ### Controls
 
 | Key | Action |
 |-----|--------|
-| `Tab` | Switch focus between the skills and agents panes |
+| `Tab` | Switch focus between the skills, agents, and commands panes |
 | `↑` / `↓` | Navigate up/down in the current pane |
 | `j` / `k` | Alternative navigation keys (vim-style) |
 | `Space` | Toggle selection of the highlighted item |
@@ -679,7 +686,7 @@ Each pane shows the artifact name, description, and selection state. The active 
 ### Behavior
 
 - At least one pane must have a source root configured for the TUI to appear
-- If only skills or only agents are configured, the TUI shows a single pane
+- If only one or two artifact kinds are configured, the TUI shows only those panes
 - Confirming with no selections exits without installing anything
 - The TUI gracefully handles terminals of various sizes
 
