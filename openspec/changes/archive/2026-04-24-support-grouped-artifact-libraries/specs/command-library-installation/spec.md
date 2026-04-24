@@ -1,8 +1,4 @@
-## Purpose
-
-Define how `hermes` discovers, validates, and installs reusable OpenCode command markdown files into a project-local `.opencode/commands/` directory.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Discover installable commands from a configured source library
 The system SHALL recursively scan the configured commands source root for descendant markdown files and only expose a file as installable when it contains a non-empty markdown template body, any YAML frontmatter present parses successfully, and its filename stem is unique across the full source tree.

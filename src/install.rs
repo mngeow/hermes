@@ -50,8 +50,11 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
                         for issue in &inspection.issues {
                             eprintln!("Warning: {issue}");
                         }
-                        let selected =
-                            select_named_skills(&result.selected_skills, inspection.items)?;
+                        let selected = select_named_skills(
+                            &result.selected_skills,
+                            inspection.items,
+                            &inspection.duplicate_names,
+                        )?;
                         for skill in selected {
                             match install_skill(paths, &mut manifest, &skill, args.force)? {
                                 InstallOutcome::Installed(name) => installed_skills.push(name),
@@ -67,8 +70,11 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
                         for issue in &inspection.issues {
                             eprintln!("Warning: {issue}");
                         }
-                        let selected =
-                            select_named_agents(&result.selected_agents, inspection.items)?;
+                        let selected = select_named_agents(
+                            &result.selected_agents,
+                            inspection.items,
+                            &inspection.duplicate_names,
+                        )?;
                         for agent in selected {
                             match install_agent(paths, &mut manifest, &agent, args.force)? {
                                 InstallOutcome::Installed(name) => installed_agents.push(name),
@@ -84,8 +90,11 @@ pub fn run(paths: &ProjectPaths, overrides: &SourceOverrides, args: InstallArgs)
                         for issue in &inspection.issues {
                             eprintln!("Warning: {issue}");
                         }
-                        let selected =
-                            select_named_commands(&result.selected_commands, inspection.items)?;
+                        let selected = select_named_commands(
+                            &result.selected_commands,
+                            inspection.items,
+                            &inspection.duplicate_names,
+                        )?;
                         for command in selected {
                             match install_command(paths, &mut manifest, &command, args.force)? {
                                 InstallOutcome::Installed(name) => installed_commands.push(name),
@@ -315,7 +324,7 @@ fn resolve_skill_selection(
                 .as_deref()
                 .ok_or_else(|| anyhow::anyhow!("no skills source root configured"))?;
             let inspection = inspect_skills(root)?;
-            select_named_skills(names, inspection.items)
+            select_named_skills(names, inspection.items, &inspection.duplicate_names)
         }
     }
 }
@@ -343,7 +352,7 @@ fn resolve_agent_selection(
                 .as_deref()
                 .ok_or_else(|| anyhow::anyhow!("no agents source root configured"))?;
             let inspection = inspect_agents(root)?;
-            select_named_agents(names, inspection.items)
+            select_named_agents(names, inspection.items, &inspection.duplicate_names)
         }
     }
 }
@@ -371,7 +380,7 @@ fn resolve_command_selection(
                 .as_deref()
                 .ok_or_else(|| anyhow::anyhow!("no commands source root configured"))?;
             let inspection = inspect_commands(root)?;
-            select_named_commands(names, inspection.items)
+            select_named_commands(names, inspection.items, &inspection.duplicate_names)
         }
     }
 }
@@ -379,6 +388,7 @@ fn resolve_command_selection(
 fn select_named_skills(
     names: &[String],
     discovered: Vec<DiscoveredSkill>,
+    duplicate_names: &[String],
 ) -> Result<Vec<DiscoveredSkill>> {
     let map = discovered
         .into_iter()
@@ -386,6 +396,12 @@ fn select_named_skills(
         .collect::<BTreeMap<_, _>>();
     let mut selected = Vec::new();
     for name in dedupe(names) {
+        if duplicate_names.contains(&name) {
+            bail!(
+                "ambiguous skill '{name}': multiple artifacts share this name; \
+                 rename or regroup the colliding source artifacts"
+            );
+        }
         let skill = map
             .get(&name)
             .cloned()
@@ -398,6 +414,7 @@ fn select_named_skills(
 fn select_named_agents(
     names: &[String],
     discovered: Vec<DiscoveredAgent>,
+    duplicate_names: &[String],
 ) -> Result<Vec<DiscoveredAgent>> {
     let map = discovered
         .into_iter()
@@ -405,6 +422,12 @@ fn select_named_agents(
         .collect::<BTreeMap<_, _>>();
     let mut selected = Vec::new();
     for name in dedupe(names) {
+        if duplicate_names.contains(&name) {
+            bail!(
+                "ambiguous agent '{name}': multiple artifacts share this name; \
+                 rename or regroup the colliding source artifacts"
+            );
+        }
         let agent = map
             .get(&name)
             .cloned()
@@ -417,6 +440,7 @@ fn select_named_agents(
 fn select_named_commands(
     names: &[String],
     discovered: Vec<DiscoveredCommand>,
+    duplicate_names: &[String],
 ) -> Result<Vec<DiscoveredCommand>> {
     let map = discovered
         .into_iter()
@@ -424,6 +448,12 @@ fn select_named_commands(
         .collect::<BTreeMap<_, _>>();
     let mut selected = Vec::new();
     for name in dedupe(names) {
+        if duplicate_names.contains(&name) {
+            bail!(
+                "ambiguous command '{name}': multiple artifacts share this name; \
+                 rename or regroup the colliding source artifacts"
+            );
+        }
         let command = map
             .get(&name)
             .cloned()

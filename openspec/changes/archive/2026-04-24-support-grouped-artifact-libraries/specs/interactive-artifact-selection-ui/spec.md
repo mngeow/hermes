@@ -1,8 +1,4 @@
-## Purpose
-
-Define the interactive terminal UI used by `hermes install` when users choose installable skills, agents, and commands without passing explicit artifact names.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Provide a terminal UI for interactive artifact selection
 The system SHALL provide a terminal UI for interactive install selection that lets users browse installable skills, agents, and commands without passing artifact names in command arguments, SHALL present grouped source folders as browseable nodes when a library contains nested folders, and SHALL present that UI with a Hermes-branded header and vertically stacked artifact panes.
@@ -45,11 +41,3 @@ The system SHALL allow users to navigate, select, confirm, and cancel install ch
 - **THEN** it SHALL use a darker overall visual theme than the default plain list presentation
 - **AND** it SHALL use stronger title, border, highlight, or accent styling to indicate which pane currently has focus
 - **AND** it SHALL preserve non-color cues for both artifact and folder selection state so selected content remains identifiable even with limited terminal color support
-
-### Requirement: Handle unavailable interactive terminal sessions clearly
-The system SHALL fail clearly when interactive selection is requested implicitly but no usable terminal UI session can be opened.
-
-#### Scenario: No TTY is available for interactive install
-- **WHEN** the user runs `hermes install` without explicit artifact names in a non-interactive terminal session
-- **THEN** the CLI SHALL exit with a clear error explaining that interactive selection requires a terminal
-- **AND** tell the user to rerun in a TTY or provide explicit artifact names

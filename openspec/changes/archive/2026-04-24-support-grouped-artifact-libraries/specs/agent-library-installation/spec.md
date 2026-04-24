@@ -1,8 +1,4 @@
-## Purpose
-
-Define how `hermes` discovers, validates, and installs reusable OpenCode markdown agents into a project-local `.opencode/agents/` directory.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Discover installable agents from a configured source library
 The system SHALL recursively scan the configured agents source root for descendant markdown files and only expose a file as installable when it contains YAML frontmatter with a required `description` field and its filename stem is unique across the full source tree.

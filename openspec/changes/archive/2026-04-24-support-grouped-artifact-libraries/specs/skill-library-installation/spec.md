@@ -1,8 +1,4 @@
-## Purpose
-
-Define how `hermes` discovers, selects, and installs reusable skills from a central library into a project-local `.opencode/skills/` directory.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Discover installable skills from a configured source library
 The system SHALL recursively scan the configured skills source root, treat any descendant directory containing a top-level `SKILL.md` as a candidate skill, and only expose a skill as installable when its `SKILL.md` frontmatter contains `name` and `description`, the `name` matches the skill directory name, and that skill name is unique across the full source tree.

@@ -22,9 +22,9 @@ It is effectively the delivery and transport layer between a central reusable li
 
 ## What Hermes Does
 
-- discovers installable skills from `repo/`
-- discovers installable agents from `agents/`
-- discovers installable commands from `commands/`
+- discovers installable skills from `repo/` recursively, including grouped subfolders
+- discovers installable agents from `agents/` recursively, including grouped subfolders
+- discovers installable commands from `commands/` recursively, including grouped subfolders
 - persists default source roots in `~/.config/hermes_cli/config.toml`
 - lets a project choose which skills, agents, and commands to install locally
 - copies them into the local `.opencode/` directory
@@ -65,6 +65,20 @@ Hermes resolves source roots in this order:
 
 The user-level config file stores reusable `skills_source_root`, `agents_source_root`, and `commands_source_root` defaults. The project-local `.opencode/catalog.toml` tracks installed artifacts and local workspace state.
 
+## Grouped Source Libraries
+
+Hermes supports organizing skills, agents, and commands into subfolders inside their respective source roots. Discovery walks the source tree recursively:
+
+- **Skills**: any descendant directory containing a top-level `SKILL.md` is treated as an installable skill. Intermediate directories without `SKILL.md` are grouping folders and are ignored.
+- **Agents**: any descendant `.md` file with valid frontmatter is treated as an installable agent.
+- **Commands**: any descendant `.md` file with a non-empty template body is treated as an installable command.
+
+Installed artifacts are always copied into the flat `.opencode/skills/`, `.opencode/agents/`, and `.opencode/commands/` destinations. The catalog records the nested `source_rel_path` so `sync`, `remove`, and `doctor` continue to work correctly.
+
+### Duplicate-Name Constraints
+
+Because install destinations remain flat, artifact names must be unique within each kind. If recursive discovery finds two skills (or agents, or commands) that would install under the same name, Hermes excludes them from install choices and reports the ambiguity in inspection, `doctor`, and explicit install attempts. Resolve collisions by renaming or regrouping the source artifacts.
+
 ## Interactive Mode
 
 `hermes` can also boot into an interactive terminal UI for install selection.
@@ -86,7 +100,14 @@ cargo run -- configure --skills-source ./repo --agents-source ./agents --command
 cargo run -- install
 ```
 
-The TUI lets you browse skills, agents, and commands in one screen. Use `Tab` to switch focus, `Up` and `Down` or `j` and `k` to move, `Space` or `Enter` to toggle items, `c` to confirm, and `q` or `Esc` to cancel.
+The TUI lets you browse skills, agents, and commands in one screen. When source libraries contain nested folders, the TUI displays them as a tree:
+
+- Use `Tab` to switch focus between panes.
+- Use `Up` and `Down` or `j` and `k` to navigate.
+- Use `Space` or `Enter` to toggle selection of a leaf artifact or an entire folder subtree.
+- Use `c` to confirm and `q` or `Esc` to cancel.
+
+Folder nodes show `[-]` when some but not all descendants are selected, `[x]` when all descendants are selected, and `[ ]` when none are selected.
 
 Example install flow inside a target project directory:
 

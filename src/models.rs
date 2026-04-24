@@ -184,6 +184,7 @@ impl ProjectPaths {
 pub struct Inspection<T> {
     pub items: Vec<T>,
     pub issues: Vec<String>,
+    pub duplicate_names: Vec<String>,
 }
 
 impl<T> Default for Inspection<T> {
@@ -191,6 +192,7 @@ impl<T> Default for Inspection<T> {
         Self {
             items: Vec::new(),
             issues: Vec::new(),
+            duplicate_names: Vec::new(),
         }
     }
 }
